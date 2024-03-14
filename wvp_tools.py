@@ -335,3 +335,57 @@ def trim(audio, amplitude_track, srate, binSize = 6, hopSize = 256, threshold = 
                 index_last = i
     
     return audio[index_first * hopSize:(index_last + 10) * hopSize]
+    
+# this cell takes a probe sequence and a query sequence, and locates the probe in the query:
+
+def probe_localization(probe_audio, query_audio, winSize, srate, threshold):
+    
+    # get correlation between probe and query, and probe and probe:
+    
+    correlation_pq = np.correlate(probe_audio, query_audio, mode = 'same')[::-1]
+    correlation_pp = np.correlate(probe_audio, probe_audio, mode = 'same')
+    
+    # define localization threshold based on probe-probe correlation:
+    
+    thresh = threshold * max(correlation_pp)
+
+    offsets = np.arange(0, len(correlation_pq), winSize)
+    amp = np.zeros(len(offsets))
+    
+    for (m, o) in enumerate(offsets): 
+        frame = correlation_pq[o:o+winSize] 
+        amp[m] = np.max(np.abs(frame))
+    
+    localizations = np.array([i for i in range(1, len(amp) - 1) 
+                              if (amp[i] > amp[i - 1] and amp[i] > amp[i + 1] and amp[i] > thresh)])
+    
+    return amp, localizations * winSize / srate
+    
+# this cell measures the similarity between two calls, using a variety of methods:
+
+# cross-correlation peak max:
+
+def similarity_cross_correlation(audio_1, audio_2):
+    
+    correlation = np.correlate(audio_1, audio_2, mode = "same")
+    
+    return max(correlation)
+
+# dtw distance:
+
+def similarity_dynamic_time_warping(audio_1, audio_2):
+    
+    distance, path = fastdtw(call_1, call_2)
+    
+    return distance
+
+# mfcc distance:
+
+def similarity_mfcc(audio_1, audio_2, srate):
+    
+    mfccs_1 = librosa.feature.mfcc(y = audio_1, sr = srate)
+    mfccs_2 = librosa.feature.mfcc(y = audio_2, sr = srate)
+    
+    distance = np.linalg.norm(mfccs_1 - mfccs_2)
+    
+    return distance
