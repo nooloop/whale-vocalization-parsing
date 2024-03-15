@@ -1,8 +1,8 @@
 # Whale Vocalization Parsing
 
-This repository contains a set of digital signal processing tools and methods for denoising whale vocalizations and extracting information from these vocalizations. Tools are located in `whale_tools.py`, and are based on the `numpy`, `scipy`, `matplotlib`, `librosa`, and `bokeh` Python libraries. Methods are located in `whale_methods.py`, which inherits functions from `whale_tools.py`.
+This repository contains a set of digital signal processing tools and methods for denoising whale vocalizations and extracting information from these vocalizations. Tools are located in `wvp_tools.py`, and are based on the `numpy`, `scipy`, `matplotlib`, `librosa`, and `bokeh` Python libraries. Methods are located in `wvp_methods.py`, which inherits functions from `wvp_tools.py`.
 
-`whale_tools_and_methods.ipynb` is an interactive Python notebook that implements in a central location these tools and methods for development purposes. It requires that users have access to their own database of whale vocalization tracks in `.wav` form (though adaptation is easily possible to accommodate other audio formats).
+`wvp_tools_and_methods.ipynb` is an interactive Python notebook that implements in a central location these tools and methods for development purposes. It requires that users have access to their own database of whale vocalization tracks in `.wav` form (though adaptation is easily possible to accommodate other audio formats).
 
 ## Tools
 
