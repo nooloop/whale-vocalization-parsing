@@ -1,26 +1,15 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import IPython.display as ipd
-import scipy.io.wavfile as wav
-import scipy
-from scipy import signal
-from bokeh.plotting import figure, show, output_notebook
-from bokeh.models import LinearColorMapper, ColorBar
-from bokeh.transform import linear_cmap
-import librosa
-from scipy.interpolate import interp1d 
-from scipy.interpolate import interp1d 
-from fastdtw import fastdtw
-import sklearn
-import os
 import soundfile as sf
 import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv1D, MaxPooling1D, UpSampling1D
-from tensorflow.keras.models import Model
-
-%matplotlib inline 
-output_notebook()
+import random
+import os
+import sklean
+import scipy
+import bokeh
+import librosa
+import fastdtw
+import IPython.display as ipd
+import matplotlib.pyplot as plt
 
 # this function loads audio:
 
@@ -28,7 +17,7 @@ def load_audio(filename):
     
     # read in file and convert to range [-1, 1]:
     
-    srate, audio = wav.read(filename)
+    srate, audio = scipy.io.wavfile.read(filename)
     audio = audio.astype(np.float32) / 32767.0 
     
     # set max to 0.9:
@@ -44,7 +33,7 @@ def load_audio(filename):
     
     return audio, srate 
 	
-# this function plots the time-domain representation of two audio files:
+# this function plots the time-domain representation of an audio file:
 
 def plot_time_domain(audio, srate): 
     p = figure(plot_width=800, plot_height=200, x_axis_label='Time (s)', y_axis_label='Amplitude')
@@ -52,10 +41,10 @@ def plot_time_domain(audio, srate):
     p.line(time, audio)
     show(p)
 	
-# this function plots the frequency-domain representation of two audio files:
+# this function plots the frequency-domain representation of an audio file:
 
 def plot_freq_domain(audio, srate):
-    f, t, s = signal.spectrogram(audio, srate)
+    f, t, s = scipy.signal.spectrogram(audio, srate)
     s = 10 * np.log10(s + 1e-40)
     p = figure(plot_width=800, plot_height=400, x_axis_label='Time (s)', y_axis_label='Frequency (Hz)')
     p.image(image=[s], x=0, y=0, dw=t[-1], dh=f[-1], palette="Viridis256", level="image")
@@ -322,7 +311,7 @@ def plot_dtw(table, path, signal1, signal2):
     # Path.
     ax3.plot(path[:,0], path[:,1], 'r')
     
-# this cell trims a call file based its amplitude track:
+# this function trims a call file based its amplitude track:
 
 def trim(audio, amplitude_track, srate, binSize = 6, hopSize = 256, threshold = 2.5, sensitivity = 5):
 
@@ -345,7 +334,7 @@ def trim(audio, amplitude_track, srate, binSize = 6, hopSize = 256, threshold = 
     
     return audio[index_first * hopSize:(index_last + 10) * hopSize]
     
-# this cell takes a probe sequence and a query sequence, and locates the probe in the query:
+# this function takes a probe sequence and a query sequence, and locates the probe in the query:
 
 def probe_localization(probe_audio, query_audio, winSize, srate, threshold):
     
@@ -370,9 +359,7 @@ def probe_localization(probe_audio, query_audio, winSize, srate, threshold):
     
     return amp, localizations * winSize / srate
     
-# this cell measures the similarity between two calls, using a variety of methods:
-
-# cross-correlation peak max:
+# these functions measure the similarity between two calls, using a variety of methods:
 
 def similarity_cross_correlation(audio_1, audio_2):
     
@@ -380,15 +367,11 @@ def similarity_cross_correlation(audio_1, audio_2):
     
     return max(correlation)
 
-# dtw distance:
-
 def similarity_dynamic_time_warping(audio_1, audio_2):
     
     distance, path = fastdtw(call_1, call_2)
     
     return distance
-
-# mfcc distance:
 
 def similarity_mfcc(audio_1, audio_2, srate):
     
@@ -399,7 +382,7 @@ def similarity_mfcc(audio_1, audio_2, srate):
     
     return distance
     
-# this cell takes an array of feature vectors, and clusters them:
+# this function takes an array of feature vectors, and clusters them:
 
 def cluster_adaptive_kmeans(data, max_clusters = 50, tolerance = 0.01):
     
@@ -427,52 +410,3 @@ def cluster_dbscan(data, eps = 0.5, min_samples = 5):
     n_noise_ = list(labels).count(-1)
     
     return labels, n_clusters_, n_noise_
-
-# this cell trains on a set of audio clips, and outputs similar clips:
-
-def audio_training(audio_samples, length, channels, name):
-    
-    # divide the data into training and testing:
-    
-    audio_samples_train = np.array(audio_samples[:len(audio_samples) // 2])
-    audio_samples_test  = np.array(audio_samples[len(audio_samples) // 2 :])
-    
-    # define the autoencoder architecture:
-    
-    num_clips_train, num_samples_train = audio_samples_train.shape
-    audio_data_train = audio_samples_train.reshape(num_clips_train, num_samples_train, channels)
-    num_clips_test, num_samples_test = audio_samples_test.shape
-    audio_data_test = audio_samples_test.reshape(num_clips_test, num_samples_test, channels)
-    input_shape = (num_samples_train, channels)  # Shape of input audio clips
-    
-    # encoder:
-    
-    inputs = Input(shape=input_shape)
-    x = Conv1D(filters=16, kernel_size=3, activation='relu', padding='same', name='encoder_begin')(inputs)
-    x = MaxPooling1D(pool_size=2, padding='same')(x)
-    x = Conv1D(filters=8, kernel_size=3, activation='relu', padding='same')(x)
-    encoded = MaxPooling1D(pool_size=2, padding='same', name='encoder_end')(x)
-
-    # decoded:
-    
-    x = Conv1D(filters=8, kernel_size=3, activation='relu', padding='same', name='decoder_begin')(encoded)
-    x = UpSampling1D(size=2)(x)
-    x = Conv1D(filters=16, kernel_size=3, activation='relu', padding='same')(x)
-    x = UpSampling1D(size=2)(x)
-    decoded = Conv1D(filters=channels, kernel_size=3, activation='sigmoid', padding='same', name='decoder_end')(x)
-
-
-    # define the autoencoder model:
-    
-    autoencoder = Model(inputs, decoded)
-    autoencoder.compile(optimizer = 'adam', loss = 'binary_crossentropy')
-    
-    # train the autoencoder:
-    
-    autoencoder.fit(audio_data_train, audio_data_train, epochs=100, batch_size=10, shuffle=True, validation_data = (audio_data_test, audio_data_test))
-    
-    # generate new clips from random data:
-    
-    new_clips = autoencoder.predict(audio_samples_test)
-    
-    return new_clips
